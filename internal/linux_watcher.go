@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
-	//"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -21,7 +20,7 @@ const (
 
 type WatchEvent struct {
 	EventType ModificationType
-	FileName  string
+	Name      string
 }
 
 type linuxFileWatcher struct{}
@@ -44,18 +43,10 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 	if err != nil {
 		return err
 	}
-	watchWithPath := make(map[int]string)
 	_, err = unix.InotifyAddWatch(fd, dir, unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
 	if err != nil {
 		return err
-	}/*
-	for _, file := range files {
-		watchDescriptor, err := unix.InotifyAddWatch(fd, filepath.Join(dir, file.Name()), unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
-		if err != nil {
-			return err
-		}
-		watchWithPath[watchDescriptor] = file.Name()
-	}*/
+	}
 	buf := make([]byte, unix.SizeofInotifyEvent*len(files)*500)
 	slog.Info("watching", "dir", dir)
 	for {
@@ -67,13 +58,16 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 			event := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
 			modType, err := getModificationType(event.Mask)
 			if err != nil {
-				slog.Error("error transforming watch to event", "error", err)
+				slog.Error("error transforming modifcation type to event", "error", err)
 				return err
 			}
-			slog.Info("event", "test", event)
+			var name string
+			if event.Len > 0 {
+				name = unix.ByteSliceToString(buf[offset+unix.SizeofInotifyEvent : offset+unix.SizeofInotifyEvent+int(event.Len)])
+			}
 			watchEvent := WatchEvent{
 				EventType: modType,
-				FileName:  watchWithPath[int(event.Wd)],
+				Name:      name,
 			}
 			eventChan <- watchEvent
 			offset += unix.SizeofInotifyEvent + int(event.Len)
