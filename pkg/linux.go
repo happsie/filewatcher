@@ -1,4 +1,4 @@
-package internal
+package pkg
 
 import (
 	"fmt"
@@ -10,26 +10,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type ModificationType int32
-
-const (
-	Modified ModificationType = 0
-	Deleted  ModificationType = 1
-	Created  ModificationType = 2
-)
-
-type WatchEvent struct {
-	EventType ModificationType
-	Name      string
-}
-
 type linuxFileWatcher struct{}
 
-func NewLinuxFileWatcher() *linuxFileWatcher {
+func newLinuxFileWatcher() *linuxFileWatcher {
 	return &linuxFileWatcher{}
 }
 
-func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
+func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 	if eventChan == nil {
 		return fmt.Errorf("an event channel cannot be nil")
 	}
@@ -66,8 +53,8 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 				name = unix.ByteSliceToString(buf[offset+unix.SizeofInotifyEvent : offset+unix.SizeofInotifyEvent+int(event.Len)])
 			}
 			watchEvent := WatchEvent{
-				EventType: modType,
-				Name:      name,
+				ModificationType: modType,
+				Name:             name,
 			}
 			eventChan <- watchEvent
 			offset += unix.SizeofInotifyEvent + int(event.Len)

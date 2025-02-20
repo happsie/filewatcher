@@ -3,38 +3,19 @@ package main
 import (
 	"log/slog"
 
-	"github.com/happsie/filey/internal"
+	"github.com/happsie/filey/pkg"
 )
 
 func main() {
-	eventChan := make(chan internal.WatchEvent)
-	watcher := internal.NewLinuxFileWatcher()
-	go func() {
-		err := watcher.Watch("./test", eventChan)
-		if err != nil {
-			slog.Error("error watching directory", "error", err)
-		}
-	}()
-
-	for event := range eventChan {
-		slog.Info("new event", "event", event)
-	}
-	/*
-		watcher := NewWatcher(NewCachedDirectoryScanner())
-
-		watcher.HandleFunc(Created, func(meta FileMeta) {
-			slog.Info("handling created", "meta", meta)
-		})
-		watcher.HandleFunc(Modified, func(meta FileMeta) {
-			slog.Info("handling modified", "meta", meta)
-		})
-		watcher.HandleFunc(Removed, func(meta FileMeta) {
-			slog.Info("handling removed", "meta", meta)
-		})
-
-		err := watcher.Watch()
-		if err != nil {
-			slog.Error("watcher failed", "error", err)
-			os.Exit(1)
-		}*/
+	watcher := pkg.NewWatcher("./test")
+	watcher.HandlerFunc(pkg.Modified, func(event pkg.WatchEvent) {
+		slog.Info("modified - handler 1", "event", event)
+	})
+	watcher.HandlerFunc(pkg.Modified, func(event pkg.WatchEvent) {
+		slog.Info("modified - handler 2", "event", event)
+	})
+	watcher.HandlerFunc(pkg.Created, func(event pkg.WatchEvent) {
+		slog.Info("created - handler 1", "event", event)
+	})
+	watcher.Start()
 }
