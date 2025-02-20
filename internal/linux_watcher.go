@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -25,62 +24,54 @@ type WatchEvent struct {
 	FileName  string
 }
 
-type linuxFileWatcher struct {
-	dir           string
-	watchWithPath map[int]string
+type linuxFileWatcher struct {}
+
+func NewLinuxFileWatcher() *linuxFileWatcher {
+	return &linuxFileWatcher{}
 }
 
-func NewLinuxFileWatcher(dir string) *linuxFileWatcher {
-	return &linuxFileWatcher{
-		dir:           dir,
-		watchWithPath: make(map[int]string),
-	}
-}
-
-func (lw *linuxFileWatcher) Watch(eventChan chan WatchEvent) error {
+func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 	if eventChan == nil {
 		return fmt.Errorf("an event channel cannot be nil")
 	}
+	watchWithPath := make(map[int]string)
 	fd, err := unix.InotifyInit()
 	if err != nil {
 		return err
 	}
 	defer unix.Close(fd)
 
-	files, err := fs.ReadDir(os.DirFS(lw.dir), ".")
+	files, err := fs.ReadDir(os.DirFS(dir), ".")
 	if err != nil {
 		return err
 	}
 	for _, file := range files {
-		watchDescriptor, err := unix.InotifyAddWatch(fd, filepath.Join(lw.dir, file.Name()), unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
+		watchDescriptor, err := unix.InotifyAddWatch(fd, filepath.Join(dir, file.Name()), unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
 		if err != nil {
 			return err
 		}
-		lw.watchWithPath[watchDescriptor] = file.Name()
+		watchWithPath[watchDescriptor] = file.Name()
 	}
 	buf := make([]byte, unix.SizeofInotifyEvent*len(files)*500)
-	slog.Info("watching", "dir", lw.dir)
+	slog.Info("watching", "dir", dir)
 	for {
 		n, err := unix.Read(fd, buf)
 		if err != nil {
 			return err
 		}
 		for offset := 0; offset < n; {
-			fmt.Println("offset", offset, "n", n)
 			event := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
-			fmt.Println("inotify", unix.SizeofInotifyEvent, "event", event)
 			modType, err := getModificationType(event.Mask)
 			if err != nil {
 				slog.Error("error transforming watch to event", "error", err)
-				continue
+				return err
 			}
 			watchEvent := WatchEvent{
 				EventType: modType,
-				FileName:  lw.watchWithPath[int(event.Wd)],
+				FileName:  watchWithPath[int(event.Wd)],
 			}
 			eventChan <- watchEvent
 			offset += unix.SizeofInotifyEvent + int(event.Len)
-			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
