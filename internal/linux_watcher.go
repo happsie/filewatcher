@@ -5,7 +5,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
+	//"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -24,7 +24,7 @@ type WatchEvent struct {
 	FileName  string
 }
 
-type linuxFileWatcher struct {}
+type linuxFileWatcher struct{}
 
 func NewLinuxFileWatcher() *linuxFileWatcher {
 	return &linuxFileWatcher{}
@@ -34,7 +34,6 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 	if eventChan == nil {
 		return fmt.Errorf("an event channel cannot be nil")
 	}
-	watchWithPath := make(map[int]string)
 	fd, err := unix.InotifyInit()
 	if err != nil {
 		return err
@@ -45,13 +44,18 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 	if err != nil {
 		return err
 	}
+	watchWithPath := make(map[int]string)
+	_, err = unix.InotifyAddWatch(fd, dir, unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
+	if err != nil {
+		return err
+	}/*
 	for _, file := range files {
 		watchDescriptor, err := unix.InotifyAddWatch(fd, filepath.Join(dir, file.Name()), unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
 		if err != nil {
 			return err
 		}
 		watchWithPath[watchDescriptor] = file.Name()
-	}
+	}*/
 	buf := make([]byte, unix.SizeofInotifyEvent*len(files)*500)
 	slog.Info("watching", "dir", dir)
 	for {
@@ -66,6 +70,7 @@ func (lw *linuxFileWatcher) Watch(dir string, eventChan chan WatchEvent) error {
 				slog.Error("error transforming watch to event", "error", err)
 				return err
 			}
+			slog.Info("event", "test", event)
 			watchEvent := WatchEvent{
 				EventType: modType,
 				FileName:  watchWithPath[int(event.Wd)],
