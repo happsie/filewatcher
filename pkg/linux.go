@@ -2,9 +2,7 @@ package pkg
 
 import (
 	"fmt"
-	"io/fs"
 	"log/slog"
-	"os"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -26,16 +24,12 @@ func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 	}
 	defer unix.Close(fd)
 
-	files, err := fs.ReadDir(os.DirFS(dir), ".")
-	if err != nil {
-		return err
-	}
 	_, err = unix.InotifyAddWatch(fd, dir, unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, unix.SizeofInotifyEvent*len(files)*500)
-	slog.Info("watching", "dir", dir)
+	buf := make([]byte, unix.SizeofInotifyEvent*500)
+	slog.Info("watching directory", "dir", dir)
 	for {
 		n, err := unix.Read(fd, buf)
 		if err != nil {
