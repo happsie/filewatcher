@@ -31,7 +31,7 @@ func NewWatcher(dir string) *Watcher {
 
 }
 
-func (w *Watcher) Start() {
+func (w *Watcher) Watch() {
 	eventCh := make(chan WatchEvent)
 	go func() {
 		err := w.watcher.watch(w.dir, eventCh)
@@ -49,9 +49,6 @@ func (w *Watcher) Start() {
 }
 
 func (w *Watcher) Unwatch() error {
-	for handler := range w.handlers {
-		delete(w.handlers, handler)
-	}
 	return w.watcher.unwatch()
 }
 

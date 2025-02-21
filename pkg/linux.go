@@ -32,7 +32,7 @@ func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 		return err
 	}
 	lw.wd = wd
-	buf := make([]byte, unix.SizeofInotifyEvent*500)
+	buf := make([]byte, unix.SizeofInotifyEvent*1000)
 	slog.Info("watching directory", "dir", dir)
 	for {
 		n, err := unix.Read(fd, buf)

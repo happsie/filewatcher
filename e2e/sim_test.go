@@ -42,7 +42,6 @@ func TestSimulator(t *testing.T) {
 	go watcher.Start()
 
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		for i := 0; i <= 1000; i++ {
