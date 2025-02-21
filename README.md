@@ -16,6 +16,6 @@ func main() {
 	watcher.HandlerFunc(pkg.Created, func(event pkg.WatchEvent) {
 		slog.Info("created - handler 1", "event", event)
 	})
-	watcher.Start() // Blocking call, use go before to spin it up on a new go routine
+	watcher.Watch() // Blocking call, use go before to spin it up on a new go routine
 }
 ```
