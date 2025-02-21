@@ -8,7 +8,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type linuxFileWatcher struct{}
+type linuxFileWatcher struct {
+	fd int
+	wd int
+}
 
 func newLinuxFileWatcher() *linuxFileWatcher {
 	return &linuxFileWatcher{}
@@ -24,10 +27,11 @@ func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 	}
 	defer unix.Close(fd)
 
-	_, err = unix.InotifyAddWatch(fd, dir, unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
+	wd, err := unix.InotifyAddWatch(fd, dir, unix.IN_CREATE|unix.IN_MODIFY|unix.IN_DELETE)
 	if err != nil {
 		return err
 	}
+	lw.wd = wd
 	buf := make([]byte, unix.SizeofInotifyEvent*500)
 	slog.Info("watching directory", "dir", dir)
 	for {
@@ -54,6 +58,11 @@ func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 			offset += unix.SizeofInotifyEvent + int(event.Len)
 		}
 	}
+}
+
+func (lw *linuxFileWatcher) unwatch() error {
+	_, err := unix.InotifyRmWatch(lw.fd, uint32(lw.wd))
+	return err
 }
 
 func getModificationType(mask uint32) (ModificationType, error) {

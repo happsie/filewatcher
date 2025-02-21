@@ -5,20 +5,21 @@ import (
 	"runtime"
 )
 
-type IWatcher interface {
+type OsWatcher interface {
 	watch(dir string, eventChan chan WatchEvent) error
+	unwatch() error
 }
 
 type handlerFunc func(event WatchEvent)
 
 type Watcher struct {
-	watcher  IWatcher
+	watcher  OsWatcher
 	handlers map[ModificationType][]handlerFunc
 	dir      string
 }
 
 func NewWatcher(dir string) *Watcher {
-	var watcher IWatcher
+	var watcher OsWatcher
 	if runtime.GOOS == "linux" {
 		watcher = newLinuxFileWatcher()
 	}
@@ -42,9 +43,16 @@ func (w *Watcher) Start() {
 	for event := range eventCh {
 		handlers := w.handlers[event.ModificationType]
 		for _, handler := range handlers {
-			handler(event)
+			go handler(event)
 		}
 	}
+}
+
+func (w *Watcher) Unwatch() error {
+	for handler := range w.handlers {
+		delete(w.handlers, handler)
+	}
+	return w.watcher.unwatch()
 }
 
 func (w *Watcher) HandlerFunc(modificationType ModificationType, handler handlerFunc) {
