@@ -6,7 +6,7 @@ A small practice project exploring some deeper systems programming. Currently on
 
 ```go
 func main() {
-	watcher := pkg.NewWatcher("./test")
+	Backgroundwatcher := pkg.NewWatcher("./test") // directory to watch
 	watcher.HandlerFunc(pkg.Modified, func(event pkg.WatchEvent) {
 		slog.Info("modified - handler 1", "event", event)
 	})
@@ -16,7 +16,7 @@ func main() {
 	watcher.HandlerFunc(pkg.Created, func(event pkg.WatchEvent) {
 		slog.Info("created - handler 1", "event", event)
 	})
-	watcher.Watch() // Blocking call, use go before to spin it up on a new go routine
+	watcher.Watch(context.Background()) // Blocking call, use go before to spin it up on a new go routine
 }
 ```
 

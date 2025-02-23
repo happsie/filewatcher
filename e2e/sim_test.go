@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -37,7 +38,7 @@ func TestSimulator(t *testing.T) {
 		result.mu.Unlock()
 
 	})
-	go watcher.Watch()
+	go watcher.Watch(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(1)

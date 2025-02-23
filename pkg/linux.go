@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"unsafe"
@@ -17,7 +18,7 @@ func newLinuxFileWatcher() *linuxFileWatcher {
 	return &linuxFileWatcher{}
 }
 
-func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
+func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent, ctx context.Context) error {
 	if eventChan == nil {
 		return fmt.Errorf("an event channel cannot be nil")
 	}
@@ -35,27 +36,33 @@ func (lw *linuxFileWatcher) watch(dir string, eventChan chan WatchEvent) error {
 	buf := make([]byte, unix.SizeofInotifyEvent*1000)
 	slog.Info("watching directory", "dir", dir)
 	for {
-		n, err := unix.Read(fd, buf)
-		if err != nil {
-			return err
-		}
-		for offset := 0; offset < n; {
-			event := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
-			modType, err := getModificationType(event.Mask)
+		select {
+		case <-ctx.Done():
+			lw.unwatch()
+			return nil
+		default:
+			n, err := unix.Read(fd, buf)
 			if err != nil {
-				slog.Error("error transforming modifcation type to event", "error", err)
 				return err
 			}
-			var name string
-			if event.Len > 0 {
-				name = unix.ByteSliceToString(buf[offset+unix.SizeofInotifyEvent : offset+unix.SizeofInotifyEvent+int(event.Len)])
+			for offset := 0; offset < n; {
+				event := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
+				modType, err := getModificationType(event.Mask)
+				if err != nil {
+					slog.Error("error transforming modifcation type to event", "error", err)
+					return err
+				}
+				var name string
+				if event.Len > 0 {
+					name = unix.ByteSliceToString(buf[offset+unix.SizeofInotifyEvent : offset+unix.SizeofInotifyEvent+int(event.Len)])
+				}
+				watchEvent := WatchEvent{
+					ModificationType: modType,
+					Name:             name,
+				}
+				eventChan <- watchEvent
+				offset += unix.SizeofInotifyEvent + int(event.Len)
 			}
-			watchEvent := WatchEvent{
-				ModificationType: modType,
-				Name:             name,
-			}
-			eventChan <- watchEvent
-			offset += unix.SizeofInotifyEvent + int(event.Len)
 		}
 	}
 }
