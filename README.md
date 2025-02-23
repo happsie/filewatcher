@@ -19,3 +19,9 @@ func main() {
 	watcher.Watch() // Blocking call, use go before to spin it up on a new go routine
 }
 ```
+
+## Run tests
+
+```
+make all-tests 
+``` 

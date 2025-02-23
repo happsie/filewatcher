@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/happsie/filey/pkg"
+	"github.com/happsie/filewatcher/pkg"
 )
 
 type TestResult struct {

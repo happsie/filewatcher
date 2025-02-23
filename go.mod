@@ -1,4 +1,4 @@
-module github.com/happsie/filey
+module github.com/happsie/filewatcher
 
 go 1.22.2
 

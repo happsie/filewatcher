@@ -18,6 +18,8 @@ type Watcher struct {
 	dir      string
 }
 
+// NewWatcher creates a watcher for the supplied dir (directory). 
+// NewWatcher will automatically determine the correct watcher based on operating system
 func NewWatcher(dir string) *Watcher {
 	var watcher OsWatcher
 	if runtime.GOOS == "linux" {
@@ -31,6 +33,7 @@ func NewWatcher(dir string) *Watcher {
 
 }
 
+// Watch will start watching the directory and direct the events from the OS to handlers. This is a blocking call 
 func (w *Watcher) Watch() {
 	eventCh := make(chan WatchEvent)
 	go func() {
@@ -48,10 +51,13 @@ func (w *Watcher) Watch() {
 	}
 }
 
+// Unwatch will remove the watcher from the watched directory
 func (w *Watcher) Unwatch() error {
 	return w.watcher.unwatch()
 }
 
+// HandlerFunc will add a Handler function for the specified modificationType. Events from the operating system in the directory matching
+// the modificationType will trigger the handler. The handler will consists of the event containing filename 
 func (w *Watcher) HandlerFunc(modificationType ModificationType, handler handlerFunc) {
 	w.handlers[modificationType] = append(w.handlers[modificationType], handler)
 }
