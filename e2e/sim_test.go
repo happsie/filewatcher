@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/happsie/filey/pkg"
 )
@@ -21,30 +22,27 @@ func TestSimulator(t *testing.T) {
 
 	watcher := pkg.NewWatcher("./test")
 	watcher.HandlerFunc(pkg.Modified, func(event pkg.WatchEvent) {
-		t.Log("modified - handler 1", event)
 		result.mu.Lock()
 		result.modified++
 		result.mu.Unlock()
 	})
 	watcher.HandlerFunc(pkg.Deleted, func(event pkg.WatchEvent) {
-		t.Log("deleted - handler 2", event)
 		result.mu.Lock()
 		result.deleted++
 		result.mu.Unlock()
 	})
 	watcher.HandlerFunc(pkg.Created, func(event pkg.WatchEvent) {
-		t.Log("created - handler 3", event)
 		result.mu.Lock()
 		result.created++
 		result.mu.Unlock()
 
 	})
-	go watcher.Start()
+	go watcher.Watch()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		for i := 0; i <= 1000; i++ {
+		for i := 1; i <= 1000; i++ {
 			fileName := fmt.Sprintf("./test/test_create_%d", i)
 			os.Create(fileName)
 			os.Remove(fileName)
@@ -54,7 +52,7 @@ func TestSimulator(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		for i := 0; i <= 1000; i++ {
+		for i := 1; i <= 1000; i++ {
 			fileName := fmt.Sprintf("./test/test_modify_%d", i)
 			os.WriteFile(fileName, []byte("hello"), os.ModePerm)
 			os.Remove(fileName)
@@ -63,6 +61,8 @@ func TestSimulator(t *testing.T) {
 	}()
 
 	wg.Wait()
+	// We are sleeping here for 5 seconds to wait for all events from the OS to come through
+	time.Sleep(5 * time.Second)
 	watcher.Unwatch()
 
 	// Created is 2000 since we are also simultanously creating modified files. 1. Create, 2. Write "hello" to file
@@ -70,6 +70,7 @@ func TestSimulator(t *testing.T) {
 		t.Log("created files mismatch!", "files", result.created)
 		t.Fail()
 	}
+	// Deleted is 2000, since we are also deleting our created files
 	if result.deleted != 2000 {
 		t.Log("deleted files mismatch!", "files", result.deleted)
 		t.Fail()

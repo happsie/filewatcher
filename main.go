@@ -17,5 +17,5 @@ func main() {
 	watcher.HandlerFunc(pkg.Created, func(event pkg.WatchEvent) {
 		slog.Info("created - handler 1", "event", event)
 	})
-	watcher.Start()
+	watcher.Watch()
 }
